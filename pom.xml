@@ -3,7 +3,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.univocity</groupId>
 	<artifactId>univocity-parsers</artifactId>
-	<version>1.6.0-SNAPSHOT</version>
+	<version>1.5.5.1</version>
 	<name>univocity-parsers</name>
 	<packaging>jar</packaging>
 	<description>uniVocity's open source parsers for processing different text formats using a consistent API</description>
@@ -29,9 +29,9 @@
 	</licenses>
 
 	<scm>
-		<url>https://github.com/uniVocity/univocity-parsers</url>
-		<connection>scm:git:git://github.com/uniVocity/univocity-parsers.git</connection>
-		<developerConnection>scm:git:git@github.com:uniVocity/univocity-parsers.git</developerConnection>
+		<url>https://github.com/birchbox/univocity-parsers</url>
+		<connection>scm:git:git://github.com/birchbox/univocity-parsers.git</connection>
+		<developerConnection>scm:git:git@github.com:birchbox/univocity-parsers.git</developerConnection>
 	</scm>
 
 	<developers>
@@ -48,18 +48,6 @@
 			<email>parsers@univocity.com</email>
 		</developer>
 	</developers>
-
-	<distributionManagement>
-		<snapshotRepository>
-			<id>ossrh</id>
-			<url>https://oss.sonatype.org/content/repositories/snapshots</url>
-		</snapshotRepository>
-
-		<repository>
-			<id>ossrh</id>
-			<url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-		</repository>
-	</distributionManagement>
 
 	<build>
 		<plugins>
@@ -129,6 +117,9 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
 				<version>2.17</version>
+        <configuration>
+          <argLine>-Xms256m -Xmx1024m</argLine>
+        </configuration>
 			</plugin>
 
 			<plugin>

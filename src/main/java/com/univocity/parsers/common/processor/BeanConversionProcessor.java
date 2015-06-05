@@ -56,45 +56,45 @@ abstract class BeanConversionProcessor<T> extends ConversionProcessor {
 	/**
 	 * Identifies and extracts fields annotated with the {@link Parsed} annotation
 	 */
-	protected final void initialize() {
-		if (!initialized) {
-			initialized = true;
+    protected final void initialize() {
+        if (!initialized) {
+            initialized = true;
 
-			Map<String, PropertyDescriptor> properties = new HashMap<String, PropertyDescriptor>();
+            Map<String, PropertyDescriptor> properties = new HashMap<String, PropertyDescriptor>();
 
-			try {
-				BeanInfo beanInfo = Introspector.getBeanInfo(beanClass, Object.class);
-				for (PropertyDescriptor property : beanInfo.getPropertyDescriptors()) {
-					String name = property.getName();
-					properties.put(name, property);
-				}
-			} catch (IntrospectionException e) {
-				//ignore and proceed to get fields direcly
-			}
+            try {
+                BeanInfo beanInfo = Introspector.getBeanInfo(beanClass, Object.class);
+                for (PropertyDescriptor property : beanInfo.getPropertyDescriptors()) {
+                    String name = property.getName();
+                    properties.put(name, property);
+                }
+            } catch (IntrospectionException e) {
+                //ignore and proceed to get fields direcly
+            }
 
-			Set<String> used = new HashSet<String>();
-			Class<?> clazz = beanClass;
-			do {
-				Field[] declared = clazz.getDeclaredFields();
-				for (Field field : declared) {
-					if (used.contains(field.getName())) {
-						continue;
-					}
-					Parsed annotation = field.getAnnotation(Parsed.class);
-					if (annotation != null) {
-						FieldMapping mapping = new FieldMapping(beanClass, field, properties.get(field.getName()));
-						parsedFields.add(mapping);
-						setupConversions(field, mapping);
-						used.add(field.getName());
-					}
-				}
-				clazz = clazz.getSuperclass();
-			} while (clazz != null && clazz != Object.class);
+            Set<String> used = new HashSet<String>();
+            Class<?> clazz = beanClass;
+            do {
+                Field[] declared = clazz.getDeclaredFields();
+                for (Field field : declared) {
+                    if (used.contains(field.getName())) {
+                        continue;
+                    }
+                    Parsed annotation = field.getAnnotation(Parsed.class);
+                    if (annotation != null) {
+                        FieldMapping mapping = new FieldMapping(beanClass, field, properties.get(field.getName()));
+                        parsedFields.add(mapping);
+                        setupConversions(field, mapping);
+                        used.add(field.getName());
+                    }
+                }
+                clazz = clazz.getSuperclass();
+            } while (clazz != null && clazz != Object.class);
 
-			readOrder = null;
-			lastFieldIndexMapped = -1;
-		}
-	}
+            readOrder = null;
+            lastFieldIndexMapped = -1;
+        }
+    }
 
 	/**
 	 * Goes through each field annotated with {@link Parsed} and extracts the sequence of {@link Conversion} elements associated with each one.
