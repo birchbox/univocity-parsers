@@ -24,7 +24,6 @@ import java.util.*;
 
 import com.univocity.parsers.annotations.*;
 import com.univocity.parsers.annotations.Format;
-import com.univocity.parsers.common.*;
 import com.univocity.parsers.conversions.*;
 
 /**
@@ -110,7 +109,7 @@ public class AnnotationHelper {
 				return Conversions.replace(replace.expression(), replace.replacement());
 			} else if (annType == BooleanString.class) {
 				if (fieldType != boolean.class && fieldType != Boolean.class) {
-					throw new DataProcessingException("Invalid annotation: Field " + field.getName() + " has type " + fieldType.getName() + " instead of boolean.");
+					throw new IllegalArgumentException("Invalid annotation: Field " + field.getName() + " has type " + fieldType.getName() + " instead of boolean.");
 				}
 				BooleanString boolString = ((BooleanString) annotation);
 				String[] falseStrings = boolString.falseStrings();
@@ -140,7 +139,7 @@ public class AnnotationHelper {
 							dateIfNull = new Date();
 						} else {
 							if (formats.length == 0) {
-								throw new DataProcessingException("No format defined");
+								throw new IllegalArgumentException("No format defined");
 							}
 							SimpleDateFormat sdf = new SimpleDateFormat(formats[0]);
 							dateIfNull = sdf.parse(nullRead);
@@ -168,7 +167,7 @@ public class AnnotationHelper {
 								applyFormatSettings(formatter, options);
 							}
 						} else {
-							throw new DataProcessingException("Options '" + Arrays.toString(options) + "' not supported by conversion of type '" + conversion.getClass() + "'. It must implement " + FormattedConversion.class);
+							throw new IllegalStateException("Options '" + Arrays.toString(options) + "' not supported by conversion of type '" + conversion.getClass() + "'. It must implement " + FormattedConversion.class);
 						}
 					}
 					return conversion;
@@ -179,22 +178,22 @@ public class AnnotationHelper {
 				String[] args = convert.args();
 				Class conversionClass = convert.conversionClass();
 				if (!Conversion.class.isAssignableFrom(conversionClass)) {
-					throw new DataProcessingException("Not a valid conversion class: '" + conversionClass.getSimpleName() + "' (" + conversionClass.getName() + ")");
+					throw new IllegalArgumentException("Not a valid conversion class: '" + conversionClass.getSimpleName() + "' (" + conversionClass.getName() + ")");
 				}
 				try {
 					Constructor constructor = conversionClass.getConstructor(String[].class);
 					return (Conversion) constructor.newInstance((Object) args);
 				} catch (NoSuchMethodException e) {
-					throw new DataProcessingException("Could not find a public constructor with a String[] parameter in custom conversion class '" + conversionClass.getSimpleName() + "' (" + conversionClass.getName() + ")", e);
+					throw new IllegalStateException("Could not find a public constructor with a String[] parameter in custom conversion class '" + conversionClass.getSimpleName() + "' (" + conversionClass.getName() + ")", e);
 				} catch (Exception e) {
-					throw new DataProcessingException("Unexpected error instantiating custom conversion class '" + conversionClass.getSimpleName() + "' (" + conversionClass.getName() + ")", e);
+					throw new IllegalStateException("Unexpected error instantiating custom conversion class '" + conversionClass.getSimpleName() + "' (" + conversionClass.getName() + ")", e);
 				}
 			}
 			return null;
-		} catch (DataProcessingException ex) {
+		} catch (RuntimeException ex) {
 			throw ex;
 		} catch (Throwable ex) {
-			throw new DataProcessingException("Unexpected error identifying conversions to apply over field " + field.getName() + " of class " + field.getDeclaringClass().getName(), ex);
+			throw new IllegalStateException(ex);
 		}
 	}
 
@@ -218,7 +217,7 @@ public class AnnotationHelper {
 		} else if (fieldType == Character.class || fieldType == char.class) {
 			conversion = Conversions.toChar();
 			if (nullRead != null && nullRead.length() > 1) {
-				throw new DataProcessingException("Invalid default value for character '" + nullRead + "'. It should contain one character only.");
+				throw new IllegalArgumentException("Invalid default value for character '" + nullRead + "'. It should contain one character only.");
 			}
 			valueIfStringIsNull = nullRead == null ? null : nullRead.charAt(0);
 		} else if (fieldType == Byte.class || fieldType == byte.class) {
@@ -265,11 +264,11 @@ public class AnnotationHelper {
 		Map<String, String> values = new HashMap<String, String>();
 		for (String setting : propertiesAndValues) {
 			if (setting == null) {
-				throw new DataProcessingException("Illegal format among: " + Arrays.toString(propertiesAndValues));
+				throw new IllegalArgumentException("Illegal format among: " + Arrays.toString(propertiesAndValues));
 			}
 			String[] pair = setting.split("=");
 			if (pair.length != 2) {
-				throw new DataProcessingException("Illegal format setting '" + setting + "' among: " + Arrays.toString(propertiesAndValues));
+				throw new IllegalArgumentException("Illegal format setting '" + setting + "' among: " + Arrays.toString(propertiesAndValues));
 			}
 
 			values.put(pair[0], pair[1]);
@@ -301,7 +300,7 @@ public class AnnotationHelper {
 							property.getWriteMethod().invoke(formatter, modifiedDecimalSymbols);
 						}
 					} catch (Throwable ex) {
-						throw new DataProcessingException("Error trying to configure decimal symbols  of formatter '" + formatter.getClass() + ".", ex);
+						throw new IllegalStateException("Error trying to configure decimal symbols  of formatter '" + formatter.getClass() + ".", ex);
 					}
 				}
 			}
@@ -310,14 +309,14 @@ public class AnnotationHelper {
 		}
 
 		if (!values.isEmpty()) {
-			throw new DataProcessingException("Cannot find properties in formatter of type '" + formatter.getClass() + "': " + values);
+			throw new IllegalArgumentException("Cannot find properties in formatter of type '" + formatter.getClass() + "': " + values);
 		}
 	}
 
 	private static void invokeSetter(Object formatter, PropertyDescriptor property, String value) {
 		Method writeMethod = property.getWriteMethod();
 		if (writeMethod == null) {
-			throw new DataProcessingException("Cannot set property '" + property.getName() + "' of formatter '" + formatter.getClass() + "' to " + value + ". No setter defined");
+			throw new IllegalArgumentException("Cannot set property '" + property.getName() + "' of formatter '" + formatter.getClass() + "' to " + value + ". No setter defined");
 		}
 		Class<?> parameterType = writeMethod.getParameterTypes()[0];
 		Object parameterValue = null;
@@ -337,117 +336,13 @@ public class AnnotationHelper {
 			parameterValue = DateFormatSymbols.getInstance(new Locale(value));
 		}
 		if (parameterValue == null) {
-			throw new DataProcessingException("Cannot set property '" + property.getName() + "' of formatter '" + formatter.getClass() + ". Cannot convert '" + value + "' to instance of " + parameterType);
+			throw new IllegalArgumentException("Cannot set property '" + property.getName() + "' of formatter '" + formatter.getClass() + ". Cannot convert '" + value + "' to instance of " + parameterType);
 		}
 
 		try {
 			writeMethod.invoke(formatter, parameterValue);
 		} catch (Throwable e) {
-			throw new DataProcessingException("Error setting property '" + property.getName() + "' of formatter '" + formatter.getClass() + ", with '" + parameterValue + "' (converted from '" + value + "')", e);
+			throw new IllegalStateException("Error setting property '" + property.getName() + "' of formatter '" + formatter.getClass() + ", with '" + parameterValue + "' (converted from '" + value + "')", e);
 		}
-	}
-
-	private static boolean allFieldsIndexOrNameBased(boolean searchName, Class<?> beanClass) {
-		boolean hasAnnotation = false;
-		for (Field field : beanClass.getDeclaredFields()) {
-			Parsed annotation = field.getAnnotation(Parsed.class);
-			if (annotation != null) {
-				hasAnnotation = true;
-				if ((annotation.index() != -1 && searchName) || (annotation.index() == -1 && !searchName)) {
-					return false;
-				}
-			}
-		}
-		return hasAnnotation;
-	}
-
-	public static boolean allFieldsIndexBased(Class<?> beanClass) {
-		return allFieldsIndexOrNameBased(false, beanClass);
-	}
-
-	public static boolean allFieldsNameBased(Class<?> beanClass) {
-		return allFieldsIndexOrNameBased(true, beanClass);
-	}
-
-	public static Integer[] getSeletectedIndexes(Class<?> beanClass) {
-		List<Integer> indexes = new ArrayList<Integer>();
-		for (Field field : beanClass.getDeclaredFields()) {
-			Parsed annotation = field.getAnnotation(Parsed.class);
-			if (annotation != null) {
-				if (annotation.index() != -1) {
-					if (indexes.contains(annotation.index())) {
-						throw new IllegalArgumentException("Duplicate field index '" + annotation.index() + "' found in attribute '" + field.getName() + "' of class " + beanClass.getName());
-					}
-					indexes.add(annotation.index());
-				}
-			}
-		}
-
-		return indexes.toArray(new Integer[0]);
-	}
-
-	public static String[] deriveHeaderNamesFromFields(Class<?> beanClass) {
-		ArrayList<String> out = new ArrayList<String>();
-		ArrayList<Integer> indexes = new ArrayList<Integer>();
-		Field[] declared = beanClass.getDeclaredFields();
-
-		for (Field field : declared) {
-			Parsed annotation = field.getAnnotation(Parsed.class);
-			String name = null;
-			if (annotation != null) {
-				if (annotation.field().isEmpty()) {
-					name = field.getName();
-				} else {
-					name = annotation.field();
-				}
-				if (annotation.index() != -1 && indexes.contains(annotation.index())) {
-					throw new IllegalArgumentException("Duplicate field index found in attribute '" + field.getName() + "' of class " + beanClass.getName() + "");
-				}
-				indexes.add(annotation.index());
-			}
-			if (name != null) {
-				out.add(name);
-			}
-		}
-
-		int col = -1;
-		for (int i : indexes) {
-			col++;
-			if (i == -1) {
-				continue;
-			}
-			if (i != col) {
-				if (i >= out.size()) {
-					return ArgumentUtils.EMPTY_STRING_ARRAY;  // index goes beyond list of header names, can't derive.
-				}
-				Collections.swap(out, i, col);
-			}
-		}
-
-		return out.toArray(new String[out.size()]);
-	}
-
-	public static Headers findHeadersAnnotation(Class<?> beanClass) {
-		Headers headers = null;
-
-		Class<?> parent = beanClass;
-		do {
-			headers = parent.getAnnotation(Headers.class);
-
-			if (headers != null) {
-				return headers;
-			} else {
-				for (Class<?> iface : parent.getInterfaces()) {
-					headers = findHeadersAnnotation(iface);
-					if (headers != null) {
-						return headers;
-					}
-				}
-			}
-
-			parent = parent.getSuperclass();
-		} while (parent != null && headers == null);
-
-		return headers;
 	}
 }

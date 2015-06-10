@@ -36,19 +36,8 @@ public class FixedWidthWriter extends AbstractWriter<FixedWidthWriterSettings> {
 	private final boolean ignoreLeading;
 	private final boolean ignoreTrailing;
 	private final int[] fieldLengths;
-	private final FieldAlignment[] fieldAlignments;
 	private final char padding;
 	private int length;
-	private FieldAlignment alignment;
-
-	/**
-	 * The FixedWidthWriter supports all settings provided by {@link FixedWidthWriterSettings}, and requires this configuration to be properly initialized.
-	 * <p><strong>Important: </strong> by not providing an instance of {@link java.io.Writer} to this constructor, only the operations that write to Strings are available.</p>
-	 * @param settings the fixed-width writer configuration
-	 */
-	public FixedWidthWriter(FixedWidthWriterSettings settings) {
-		this(null, settings);
-	}
 
 	/**
 	 * The FixedWidthWriter supports all settings provided by {@link FixedWidthWriterSettings}, and requires this configuration to be properly initialized.
@@ -65,7 +54,6 @@ public class FixedWidthWriter extends AbstractWriter<FixedWidthWriterSettings> {
 		this.ignoreTrailing = settings.getIgnoreTrailingWhitespaces();
 
 		this.fieldLengths = settings.getFieldLengths();
-		this.fieldAlignments = settings.getFieldAlignments();
 	}
 
 	/**
@@ -77,7 +65,6 @@ public class FixedWidthWriter extends AbstractWriter<FixedWidthWriterSettings> {
 
 		for (int i = 0; i < lastIndex; i++) {
 			length = fieldLengths[i];
-			alignment = fieldAlignments[i];
 			String nextElement = getStringValue(row[i]);
 			processElement(nextElement);
 			appendValueToRow();
@@ -89,10 +76,6 @@ public class FixedWidthWriter extends AbstractWriter<FixedWidthWriterSettings> {
 		if (this.ignoreLeading) {
 			start = skipLeadingWhitespace(element);
 		}
-
-		int padCount = alignment.calculatePadding(length, element.length() - start);
-		length -= padCount;
-		appender.fill(padding, padCount);
 
 		if (this.ignoreTrailing) {
 			int i = start;
@@ -130,6 +113,8 @@ public class FixedWidthWriter extends AbstractWriter<FixedWidthWriterSettings> {
 		if (element != null) {
 			append(element);
 		}
-		appender.fill(padding, length);
+		while (length-- > 0) {
+			appender.append(padding);
+		}
 	}
 }

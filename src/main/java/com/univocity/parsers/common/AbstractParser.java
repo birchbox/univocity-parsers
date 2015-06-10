@@ -52,24 +52,21 @@ public abstract class AbstractParser<T extends CommonParserSettings<?>> {
 	private final int recordsToRead;
 	private final char comment;
 	private final LineReader lineReader = new LineReader();
-	protected ParsingContext context;
+	protected DefaultParsingContext context;
 	protected RowProcessor processor;
 	protected CharInputReader input;
 	protected char ch;
-	private final RowProcessorErrorHandler errorHandler;
 
 	/**
 	 * All parsers must support, at the very least, the settings provided by {@link CommonParserSettings}. The AbstractParser requires its configuration to be properly initialized.
 	 * @param settings the parser configuration
 	 */
 	public AbstractParser(T settings) {
-		settings.autoConfigure();
 		this.settings = settings;
 		this.output = new ParserOutput(settings);
 		this.processor = settings.getRowProcessor();
 		this.recordsToRead = settings.getNumberOfRecordsToRead();
 		this.comment = settings.getFormat().getComment();
-		this.errorHandler = settings.getRowProcessorErrorHandler();
 	}
 
 	/**
@@ -79,7 +76,7 @@ public abstract class AbstractParser<T extends CommonParserSettings<?>> {
 	public final void parse(Reader reader) {
 		beginParsing(reader);
 		try {
-			while (!context.isStopped()) {
+			while (!context.stopped) {
 				ch = input.nextChar();
 				if (ch == comment) {
 					input.skipLines(1);
@@ -89,7 +86,7 @@ public abstract class AbstractParser<T extends CommonParserSettings<?>> {
 
 				String[] row = output.rowParsed();
 				if (row != null) {
-					rowProcessed(row);
+					processor.rowProcessed(row, context);
 					if (recordsToRead > 0 && context.currentRecord() >= recordsToRead) {
 						context.stop();
 					}
@@ -153,7 +150,7 @@ public abstract class AbstractParser<T extends CommonParserSettings<?>> {
 			row = output.rowParsed();
 		}
 		if (row != null) {
-			rowProcessed(row);
+			processor.rowProcessed(row, context);
 		}
 		return row;
 	}
@@ -171,40 +168,13 @@ public abstract class AbstractParser<T extends CommonParserSettings<?>> {
 		} else {
 			input = settings.newCharInputReader();
 		}
-
 		context = new DefaultParsingContext(input, output);
-		((DefaultParsingContext)context).stopped = false;
-
-		if (processor instanceof ConversionProcessor) {
-			ConversionProcessor conversionProcessor = ((ConversionProcessor) processor);
-			conversionProcessor.errorHandler = errorHandler;
-			conversionProcessor.context = context;
-		}
-
-		if (input instanceof AbstractCharInputReader) {
-			((AbstractCharInputReader) input).addInputAnalysisProcess(getInputAnalysisProcess());
-		}
-
+		context.stopped = false;
 		input.start(reader);
-
 		processor.processStarted(context);
 	}
 
-	/**
-	 * Allows the parser implementation to traverse the input buffer before the parsing process starts, in order to enable automatic configuration and discovery of data formats.
-	 * @return a custom implementation of {@link InputAnalysisProcess}. By default, {@code null} is returned and no special input analysis will be performed.
-	 */
-	protected InputAnalysisProcess getInputAnalysisProcess() {
-		return null;
-	}
-
 	private TextParsingException handleException(Throwable ex) {
-		if (ex instanceof DataProcessingException) {
-			DataProcessingException error = (DataProcessingException) ex;
-			error.setContext(this.context);
-			throw error;
-		}
-
 		String message = ex.getClass().getName() + " - " + ex.getMessage();
 		char[] chars = output.appender.getChars();
 		if (chars != null) {
@@ -295,11 +265,7 @@ public abstract class AbstractParser<T extends CommonParserSettings<?>> {
 			} catch (Throwable ex) {
 				// ignore and throw original error.
 			}
-			if (error instanceof DataProcessingException) {
-				DataProcessingException ex = (DataProcessingException) error;
-				ex.setContext(context);
-				throw ex;
-			} else if (error instanceof RuntimeException) {
+			if (error instanceof RuntimeException) {
 				throw (RuntimeException) error;
 			} else if (error instanceof Error) {
 				throw (Error) error;
@@ -350,7 +316,7 @@ public abstract class AbstractParser<T extends CommonParserSettings<?>> {
 	 */
 	public final String[] parseNext() {
 		try {
-			while (!context.isStopped()) {
+			while (!context.stopped) {
 				ch = input.nextChar();
 				if (ch == comment) {
 					input.skipLines(1);
@@ -361,7 +327,7 @@ public abstract class AbstractParser<T extends CommonParserSettings<?>> {
 
 				String[] row = output.rowParsed();
 				if (row != null) {
-					rowProcessed(row);
+					processor.rowProcessed(row, context);
 					if (recordsToRead > 0 && context.currentRecord() >= recordsToRead) {
 						context.stop();
 					}
@@ -416,7 +382,7 @@ public abstract class AbstractParser<T extends CommonParserSettings<?>> {
 			((DefaultCharInputReader) input).reloadBuffer();
 		}
 		try {
-			while (!context.isStopped()) {
+			while (!context.stopped) {
 				ch = input.nextChar();
 				if (ch == comment) {
 					return null;
@@ -424,7 +390,7 @@ public abstract class AbstractParser<T extends CommonParserSettings<?>> {
 				parseRecord();
 				String[] row = output.rowParsed();
 				if (row != null) {
-					rowProcessed(row);
+					processor.rowProcessed(row, context);
 					return row;
 				}
 			}
@@ -444,19 +410,5 @@ public abstract class AbstractParser<T extends CommonParserSettings<?>> {
 			}
 		}
 		return null;
-	}
-
-	private final void rowProcessed(String[] row) {
-		try {
-			processor.rowProcessed(row, context);
-		} catch (DataProcessingException ex) {
-			ex.setContext(context);
-			if (ex.isFatal()) {
-				throw ex;
-			}
-			errorHandler.handleError(ex, row, context);
-		} catch (Throwable t) {
-			throw new DataProcessingException("Unexpected error processing input row " + Arrays.toString(row) + " using RowProcessor " + processor.getClass().getName() + ".", row, t);
-		}
 	}
 }

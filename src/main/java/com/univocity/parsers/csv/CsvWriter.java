@@ -35,22 +35,10 @@ public class CsvWriter extends AbstractWriter<CsvWriterSettings> {
 	private final char separator;
 	private final char quotechar;
 	private final char escapechar;
-	private final char escapeEscape;
 	private final boolean ignoreLeading;
 	private final boolean ignoreTrailing;
 	private final boolean quoteAllFields;
-	private final boolean escapeUnquoted;
-	private final boolean inputNotEscaped;
 	private final char newLine;
-
-	/**
-	 * The CsvWriter supports all settings provided by {@link CsvWriterSettings}, and requires this configuration to be properly initialized.
-	 * <p><strong>Important: </strong> by not providing an instance of {@link java.io.Writer} to this constructor, only the operations that write to Strings are available.</p>
-	 * @param settings the CSV writer configuration
-	 */
-	public CsvWriter(CsvWriterSettings settings) {
-		this(null, settings);
-	}
 
 	/**
 	 * The CsvWriter supports all settings provided by {@link CsvWriterSettings}, and requires this configuration to be properly initialized.
@@ -64,14 +52,11 @@ public class CsvWriter extends AbstractWriter<CsvWriterSettings> {
 		this.separator = format.getDelimiter();
 		this.quotechar = format.getQuote();
 		this.escapechar = format.getQuoteEscape();
-		this.escapeEscape = settings.getFormat().getCharToEscapeQuoteEscaping();
 		this.newLine = format.getNormalizedNewline();
 
 		this.quoteAllFields = settings.getQuoteAllFields();
 		this.ignoreLeading = settings.getIgnoreLeadingWhitespaces();
 		this.ignoreTrailing = settings.getIgnoreTrailingWhitespaces();
-		this.escapeUnquoted = settings.isEscapeUnquotedValues();
-		this.inputNotEscaped = !settings.isInputEscaped();
 	}
 
 	/**
@@ -145,20 +130,16 @@ public class CsvWriter extends AbstractWriter<CsvWriterSettings> {
 		if (this.ignoreTrailing) {
 			for (int i = start; i < element.length(); i++) {
 				char nextChar = element.charAt(i);
-				if (nextChar == quotechar && (isElementQuoted || escapeUnquoted) && inputNotEscaped) {
+				if (isElementQuoted && nextChar == quotechar) {
 					appender.appendIgnoringWhitespace(escapechar);
-				} else if (nextChar == escapechar && inputNotEscaped && escapeEscape != '\0' && (isElementQuoted || escapeUnquoted)) {
-					appender.appendIgnoringWhitespace(escapeEscape);
 				}
 				appender.appendIgnoringWhitespace(nextChar);
 			}
 		} else {
 			for (int i = start; i < element.length(); i++) {
 				char nextChar = element.charAt(i);
-				if (nextChar == quotechar && (isElementQuoted || escapeUnquoted) && inputNotEscaped) {
+				if (isElementQuoted && nextChar == quotechar) {
 					appender.append(escapechar);
-				} else if (nextChar == escapechar && inputNotEscaped && escapeEscape != '\0' && (isElementQuoted || escapeUnquoted)) {
-					appender.appendIgnoringWhitespace(escapeEscape);
 				}
 				appender.append(nextChar);
 			}

@@ -40,9 +40,7 @@ import com.univocity.parsers.common.*;
  */
 public class CsvWriterSettings extends CommonWriterSettings<CsvFormat> {
 
-	private boolean escapeUnquotedValues = false;
 	private boolean quoteAllFields = false;
-	private boolean isInputEscaped = false;
 
 	/**
 	 * Indicates that all written values should be enclosed within quotes (as defined in {@link CsvFormat})
@@ -66,52 +64,6 @@ public class CsvWriterSettings extends CommonWriterSettings<CsvFormat> {
 	}
 
 	/**
-	 * Indicates whether escape sequences should be written in unquoted values. Defaults to {@code false}.
-	 *
-	 * <p>By default, this is disabled and if the input is {@code A""B,C}, the resulting value will be
-	 * {@code [A""B] and [C]} (i.e. the content is written as-is). However, if the writer is configured
-	 * to process escape sequences in unquoted values, the values will be written as {@code [A""""B] and [C]}</p>
-	 *
-	 * @return true if escape sequences should be processed in unquoted values, otherwise false
-	 */
-	public boolean isEscapeUnquotedValues() {
-		return escapeUnquotedValues;
-	}
-
-	/**
-	 * Configures the writer to process escape sequences in unquoted values. Defaults to {@code false}.
-	 *
-	 * <p>By default, this is disabled and if the input is {@code A""B,C}, the result will be written as
-	 * {@code [A""B] and [C]} (i.e. the quotes written as-is). However, if the writer is configured
-	 * to process escape sequences in unquoted values, the values will written as {@code [A""""B] and [C]}</p>
-	 *
-	 * @param escapeUnquotedValues a flag indicating whether escape sequences should be processed in unquoted values
-	 */
-	public void setEscapeUnquotedValues(boolean escapeUnquotedValues) {
-		this.escapeUnquotedValues = escapeUnquotedValues;
-	}
-
-	/**
-	 * Indicates that the user will provide escaped input, and the writer will not try to introduce escape sequences. The input will be written as-is.
-	 * <p><strong>Warning!</strong> ensure your data is properly escaped, otherwise the writer will produce invalid CSV.</p>
-	 * <p>This is disabled by default</p>
-	 * @return a flag indicating whether the escape sequences should not be introduced by the writer.
-	 */
-	public final boolean isInputEscaped() {
-		return isInputEscaped;
-	}
-
-	/**
-	 * Configures the writer to prevent it to introduce escape sequences.  The writer will assume the user is providing escaped input, and it will be written as-is.
-	 * <p><strong>Warning!</strong> ensure your data is properly escaped, otherwise the writer will produce invalid CSV.</p>
-	 * <p>This is disabled by default</p>
-	 * @param isInputEscaped a flag indicating whether the input that will be written is already properly escaped.
-	 */
-	public final void setInputEscaped(boolean isInputEscaped) {
-		this.isInputEscaped = isInputEscaped;
-	}
-
-	/**
 	 * Returns the default CsvFormat configured to produce CSV outputs compliant to the <a href="http://tools.ietf.org/html/rfc4180">RFC4180</a> standard.
 	 * @return and instance of CsvFormat configured to produce CSV outputs compliant to the <a href="http://tools.ietf.org/html/rfc4180">RFC4180</a> standard.
 	 */
@@ -124,6 +76,5 @@ public class CsvWriterSettings extends CommonWriterSettings<CsvFormat> {
 	protected void addConfiguration(Map<String, Object> out) {
 		super.addConfiguration(out);
 		out.put("Quote all fields", quoteAllFields);
-		out.put("Escape unquoted values", escapeUnquotedValues);
 	}
 }

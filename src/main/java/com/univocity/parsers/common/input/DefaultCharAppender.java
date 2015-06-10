@@ -202,13 +202,4 @@ public class DefaultCharAppender implements CharAppender {
 		return chars;
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void fill(char ch, int length) {
-		for (int i = 0; i < length; i++) {
-			chars[index++] = ch;
-		}
-	}
 }

@@ -17,9 +17,6 @@ package com.univocity.parsers.common;
 
 import java.util.*;
 
-import com.univocity.parsers.annotations.*;
-import com.univocity.parsers.annotations.helpers.*;
-import com.univocity.parsers.common.fields.*;
 import com.univocity.parsers.common.input.*;
 import com.univocity.parsers.common.input.concurrent.*;
 import com.univocity.parsers.common.processor.*;
@@ -56,7 +53,7 @@ import com.univocity.parsers.common.processor.*;
  */
 public abstract class CommonParserSettings<F extends Format> extends CommonSettings<F> {
 
-	private Boolean headerExtractionEnabled = null;
+	private boolean headerExtractionEnabled = false;
 	private RowProcessor rowProcessor;
 	private boolean columnReorderingEnabled = true;
 	private int inputBufferSize = 1024 * 1024;
@@ -97,7 +94,7 @@ public abstract class CommonParserSettings<F extends Format> extends CommonSetti
 	 * @return true if the first valid record parsed from the input should be considered as the row containing the names of each column, false otherwise
 	 */
 	public boolean isHeaderExtractionEnabled() {
-		return headerExtractionEnabled == null ? false : headerExtractionEnabled;
+		return headerExtractionEnabled;
 	}
 
 	/**
@@ -184,28 +181,7 @@ public abstract class CommonParserSettings<F extends Format> extends CommonSetti
 	 * @return true if the selected fields should be reordered and returned by the parser, false otherwise
 	 */
 	public boolean isColumnReorderingEnabled() {
-		if (rowProcessor instanceof RowProcessorSwitch) {
-			return false;
-		}
 		return columnReorderingEnabled;
-	}
-
-	/**
-	 * Returns the set of selected fields, if any
-	 * @return the set of selected fields. Null if no field was selected/excluded
-	 */
-	@Override
-	FieldSet<?> getFieldSet() {
-		return (rowProcessor instanceof RowProcessorSwitch) ? null : super.getFieldSet();
-	}
-
-	/**
-	 * Returns the FieldSelector object, which handles selected fields.
-	 * @return the FieldSelector object, which handles selected fields. Null if no field was selected/excluded
-	 */
-	@Override
-	FieldSelector getFieldSelector() {
-		return(rowProcessor instanceof RowProcessorSwitch) ? null : super.getFieldSelector();
 	}
 
 	/**
@@ -215,9 +191,6 @@ public abstract class CommonParserSettings<F extends Format> extends CommonSetti
 	 * @param columnReorderingEnabled the flag indicating whether or not selected fields should be reordered and returned by the parser
 	 */
 	public void setColumnReorderingEnabled(boolean columnReorderingEnabled) {
-		if(columnReorderingEnabled && rowProcessor instanceof RowProcessorSwitch){
-			throw new IllegalArgumentException("Cannot reorder columns when using a row processor switch.");
-		}
 		this.columnReorderingEnabled = columnReorderingEnabled;
 	}
 
@@ -260,7 +233,7 @@ public abstract class CommonParserSettings<F extends Format> extends CommonSetti
 	public final void setLineSeparatorDetectionEnabled(boolean lineSeparatorDetectionEnabled) {
 		this.lineSeparatorDetectionEnabled = lineSeparatorDetectionEnabled;
 	}
-	
+
 	@Override
 	protected void addConfiguration(Map<String, Object> out) {
 		super.addConfiguration(out);
@@ -271,40 +244,5 @@ public abstract class CommonParserSettings<F extends Format> extends CommonSetti
 		out.put("Input reading on separate thread", readInputOnSeparateThread);
 		out.put("Number of records to read", numberOfRecordsToRead == -1 ? "all" : numberOfRecordsToRead);
 		out.put("Line separator detection enabled", lineSeparatorDetectionEnabled);
-	}
-
-	@Override
-	void runAutomaticConfiguration() {
-		if (rowProcessor instanceof BeanProcessor<?>) {
-			Class<?> beanClass = ((BeanProcessor<?>) rowProcessor).getBeanClass();
-			Headers headerAnnotation = AnnotationHelper.findHeadersAnnotation(beanClass);
-
-			String[] headersFromBean = ArgumentUtils.EMPTY_STRING_ARRAY;
-			boolean allFieldsIndexBased = AnnotationHelper.allFieldsIndexBased(beanClass);
-			boolean extractHeaders = !allFieldsIndexBased;
-
-			if (headerAnnotation != null) {
-				if (headerAnnotation.sequence().length > 0) {
-					headersFromBean = headerAnnotation.sequence();
-				}
-				extractHeaders = headerAnnotation.extract();
-			}
-
-			if (this.headerExtractionEnabled == null) {
-				setHeaderExtractionEnabled(extractHeaders);
-			}
-
-			if (this.getHeaders() == null && headersFromBean.length > 0 && !headerExtractionEnabled) {
-				setHeaders(headersFromBean);
-			}
-
-			if (getFieldSet() == null) {
-				if (allFieldsIndexBased) {
-					selectIndexes(AnnotationHelper.getSeletectedIndexes(beanClass));
-				} else if (headersFromBean.length > 0 && AnnotationHelper.allFieldsNameBased(beanClass)) {
-					selectFields(headersFromBean);
-				}
-			}
-		}
 	}
 }

@@ -42,7 +42,9 @@ public class NullStringConversion implements Conversion<Object, Object> {
 	 */
 	public NullStringConversion(String... nullRepresentations) {
 		ArgumentUtils.noNulls("Null representation strings", nullRepresentations);
-		Collections.addAll(nullStrings, nullRepresentations);
+		for (String nullRepresentation : nullRepresentations) {
+			nullStrings.add(nullRepresentation);
+		}
 		this.defaultNullString = nullRepresentations[0];
 	}
 

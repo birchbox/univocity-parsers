@@ -15,6 +15,8 @@
  ******************************************************************************/
 package com.univocity.parsers.common;
 
+import java.util.*;
+
 /**
  * Exception type used provide information about any issue that might happen while writing to a given output.
  *
@@ -23,7 +25,7 @@ package com.univocity.parsers.common;
  * @author uniVocity Software Pty Ltd - <a href="mailto:parsers@univocity.com">parsers@univocity.com</a>
  *
  */
-public class TextWritingException extends AbstractException {
+public class TextWritingException extends RuntimeException {
 
 	private static final long serialVersionUID = 7198462597717255519L;
 
@@ -62,6 +64,22 @@ public class TextWritingException extends AbstractException {
 		this(message, line, null, recordCharacters, null);
 	}
 
+	@Override
+	public String getMessage() {
+		String msg = super.getMessage();
+		msg = msg == null ? "" : msg;
+
+		if (recordData != null) {
+			return "Error writing data: " + msg + ", recordCount=" + recordCount + ", recordData=" + Arrays.toString(recordData);
+		}
+
+		if (recordCharacters != null) {
+			return "Error writing data: " + msg + ", recordCount=" + recordCount + ", recordData=[" + recordCharacters + "]";
+		}
+
+		return "Error writing data: " + msg + ", recordCount=" + recordCount + "]";
+	}
+
 	/**
 	 * Returns the number of records written before the exception occurred.
 	 * @return the number of records written before the exception occurred.
@@ -84,19 +102,5 @@ public class TextWritingException extends AbstractException {
 	 */
 	public String getRecordCharacters() {
 		return recordCharacters;
-	}
-
-	@Override
-	protected String getDetails() {
-		String details = "";
-		details = printIfNotEmpty(details, "recordCount", recordCount);
-		details = printIfNotEmpty(details, "recordData", recordData);
-		details = printIfNotEmpty(details, "recordCharacters", recordCharacters);
-		return details;
-	}
-
-	@Override
-	protected String getErrorDescription() {
-		return "Error writing data";
 	}
 }

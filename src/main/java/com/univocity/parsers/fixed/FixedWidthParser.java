@@ -16,7 +16,6 @@
 package com.univocity.parsers.fixed;
 
 import com.univocity.parsers.common.*;
-import com.univocity.parsers.common.input.*;
 
 /**
  * A fast and flexible fixed-with parser implementation.
@@ -32,14 +31,7 @@ import com.univocity.parsers.common.input.*;
  */
 public class FixedWidthParser extends AbstractParser<FixedWidthParserSettings> {
 
-	private int[] lengths;
-	private int[] rootLengths;
-
-	private final Lookup[] lookaheadFormats;
-	private final Lookup[] lookbehindFormats;
-	private Lookup lookupFormat;
-	private Lookup lookbehindFormat;
-	private int maxLookupLength = Integer.MIN_VALUE;
+	private final int[] lengths;
 
 	private final boolean ignoreLeadingWhitespace;
 	private final boolean ignoreTrailingWhitespace;
@@ -51,8 +43,6 @@ public class FixedWidthParser extends AbstractParser<FixedWidthParserSettings> {
 	private final char newLine;
 
 	private int length;
-	private boolean initializeLookaheadInput = false;
-	private LookaheadCharInputReader lookaheadInput;
 
 	/**
 	 * The FixedWidthParser supports all settings provided by {@link FixedWidthParserSettings}, and requires this configuration to be properly initialized.
@@ -66,38 +56,10 @@ public class FixedWidthParser extends AbstractParser<FixedWidthParserSettings> {
 		recordEndsOnNewLine = settings.getRecordEndsOnNewline();
 		skipEmptyLines = settings.getSkipEmptyLines();
 		lengths = settings.getFieldLengths();
-		lookaheadFormats = settings.getLookaheadFormats();
-		lookbehindFormats = settings.getLookbehindFormats();
-
-		if (lookaheadFormats != null || lookbehindFormats != null) {
-			initializeLookaheadInput = true;
-			rootLengths = lengths;
-			updateLookupLength(lookaheadFormats);
-			updateLookupLength(lookbehindFormats);
-
-			this.context = new ParsingContextWrapper(context) {
-				@Override
-				public String[] headers() {
-					return lookupFormat != null ? lookupFormat.fieldNames : super.headers();
-				}
-			};
-		}
 
 		FixedWidthFormat format = settings.getFormat();
 		padding = format.getPadding();
 		newLine = format.getNormalizedNewline();
-	}
-
-	private void updateLookupLength(Lookup[] lookupFormats) {
-		if (lookupFormats == null) {
-			return;
-		}
-		for (Lookup e : lookupFormats) {
-			int length = e.value.length;
-			if (maxLookupLength < length) {
-				maxLookupLength = length;
-			}
-		}
 	}
 
 	/**
@@ -107,59 +69,6 @@ public class FixedWidthParser extends AbstractParser<FixedWidthParserSettings> {
 	protected void parseRecord() {
 		if (ch == newLine && skipEmptyLines) {
 			return;
-		}
-
-		boolean matched = false;
-		if (lookaheadFormats != null || lookbehindFormats != null) {
-			if (initializeLookaheadInput) {
-				initializeLookaheadInput = false;
-				this.lookaheadInput = new LookaheadCharInputReader(input);
-				this.input = lookaheadInput;
-			}
-
-			lookaheadInput.lookahead(maxLookupLength);
-
-			if (lookaheadFormats != null) {
-				for (int i = 0; i < lookaheadFormats.length; i++) {
-					if (lookaheadInput.matches(ch, lookaheadFormats[i].value)) {
-						lengths = lookaheadFormats[i].lengths;
-						lookupFormat = lookaheadFormats[i];
-						matched = true;
-						break;
-					}
-				}
-				if (lookbehindFormats != null && matched) {
-					lookbehindFormat = null;
-					for (int i = 0; i < lookbehindFormats.length; i++) {
-						if (lookaheadInput.matches(ch, lookbehindFormats[i].value)) {
-							lookbehindFormat = lookbehindFormats[i];
-							break;
-						}
-					}
-				}
-			} else {
-				for (int i = 0; i < lookbehindFormats.length; i++) {
-					if (lookaheadInput.matches(ch, lookbehindFormats[i].value)) {
-						lookbehindFormat = lookbehindFormats[i];
-						matched = true;
-						lengths = rootLengths;
-						break;
-					}
-				}
-			}
-			
-			if (!matched) {
-				if (lookbehindFormat == null) {
-					if(rootLengths == null){
-						throw new TextParsingException(context, "Cannot process input with the given configuration. No default field lengths defined and no lookahead/lookbehind value match '" + lookaheadInput.getLookahead(ch) + "'");
-					}
-					lengths = rootLengths;
-					lookupFormat = null;
-				} else {
-					lengths = lookbehindFormat.lengths;
-					lookupFormat = lookbehindFormat;
-				}
-			}
 		}
 
 		int i;

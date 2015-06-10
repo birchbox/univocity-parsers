@@ -179,7 +179,7 @@ public class CsvWriterTest extends CsvParserTest {
 		assertEquals(csvResult.toString(), expected);
 	}
 
-	@Test
+	@Test()
 	public void testWritingQuotedValuesIgnoringTrailingWhistespaces() throws Exception {
 		Object[] row = new Object[] { 1, "Line1\nLine2 " };
 
@@ -195,87 +195,5 @@ public class CsvWriterTest extends CsvParserTest {
 		String expected = "1,\"Line1\r\nLine2\"\r\n";
 
 		assertEquals(csvResult.toString(), expected);
-	}
-
-	@Test
-	public void testWriteToString() throws Exception {
-		CsvWriterSettings settings = new CsvWriterSettings();
-		settings.getFormat().setLineSeparator("\r\n");
-		settings.setIgnoreTrailingWhitespaces(true);
-
-		CsvWriter writer = new CsvWriter(settings);
-		String result = writer.writeRowToString(new Object[] { 1, "Line1\nLine2 " });
-
-		String expected = "1,\"Line1\r\nLine2\"";
-
-		assertEquals(result, expected);
-	}
-
-	@DataProvider
-	public Object[][] escapeHandlingParameterProvider() {
-		return new Object[][] {
-				{ false, false, "A|\"", "\",B|||\"\"" },  	//default: escapes only the quoted value
-				{ false, true, "A|||\"", "\",B|||\"\"" }, 	//escape the unquoted value
-				{ true, false, "A|\"", "\",B|\"\"" },    	//assumes input is already escaped and won't change it. Quotes introduced around value with delimiter
-				{ true, true, "A|\"", "\",B|\"\"" } 		//same as above, configured to escape the unquoted value but assumes input is already escaped.
-		};
-	}
-
-	@Test(dataProvider = "escapeHandlingParameterProvider")
-	public void testHandlingOfEscapeSequences(boolean inputEscaped, boolean escapeUnquoted, String expected1, String expected2) throws Exception {
-		CsvWriterSettings settings = new CsvWriterSettings();
-		settings.setInputEscaped(inputEscaped);
-		settings.setEscapeUnquotedValues(escapeUnquoted);
-		settings.getFormat().setCharToEscapeQuoteEscaping('|');
-		settings.getFormat().setQuoteEscape('|');
-
-		String[] line1 = new String[] { "A|\"" };
-		String[] line2 = new String[] { ",B|\"" }; // will quote because of the column separator
-
-		CsvWriter writer = new CsvWriter(settings);
-		String result1 = writer.writeRowToString(line1);
-		String result2 = writer.writeRowToString(line2);
-
-		//System.out.println(result1);
-		//System.out.println(result2);
-		assertEquals(result1, expected1);
-		assertEquals(result2, expected2);
-	}
-
-	@Test
-	public void testWritingWithIndexSelection() {
-		CsvWriterSettings settings = new CsvWriterSettings();
-		settings.selectIndexes(4, 1);
-
-		CsvWriter writer = new CsvWriter(settings);
-		String result1 = writer.writeRowToString(1, 2);
-
-		writer.updateFieldSelection(0, 3, 5);
-
-		String result2 = writer.writeRowToString('A', 'B', 'C');
-
-		//System.out.println(result1);
-		//System.out.println(result2);
-
-		assertEquals(result1, ",2,,,1");
-		assertEquals(result2, "A,,,B,,C");
-	}
-
-	@Test
-	public void testWritingWithIndexExclusion() {
-		CsvWriterSettings settings = new CsvWriterSettings();
-		settings.setMaxColumns(8);
-		settings.excludeIndexes(4, 1);
-
-		CsvWriter writer = new CsvWriter(settings);
-		String result1 = writer.writeRowToString(1, 2, 3, 4, 5, 6);
-		writer.updateFieldExclusion(1, 3, 5, 7);
-		String result2 = writer.writeRowToString(7, 8, 9, 10);
-
-//		System.out.println(result1);
-//		System.out.println(result2);
-
-		assertEquals(result1, "1,,2,3,,4,5,6");
-		assertEquals(result2, "7,,8,,9,,10,");
 	}
 }

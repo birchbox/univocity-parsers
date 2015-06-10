@@ -34,12 +34,10 @@ public class CsvParser extends AbstractParser<CsvParserSettings> {
 	private final boolean ignoreTrailingWhitespace;
 	private final boolean ignoreLeadingWhitespace;
 	private final boolean parseUnescapedQuotes;
-	private final boolean dontEscapeUnquotedValues;
-	private final boolean keepEscape;
 
-	private char delimiter;
-	private char quote;
-	private char quoteEscape;
+	private final char delimiter;
+	private final char quote;
+	private final char quoteEscape;
 	private final char escapeEscape;
 	private final char newLine;
 	private final DefaultCharAppender whitespaceAppender;
@@ -53,8 +51,6 @@ public class CsvParser extends AbstractParser<CsvParserSettings> {
 		ignoreTrailingWhitespace = settings.getIgnoreTrailingWhitespaces();
 		ignoreLeadingWhitespace = settings.getIgnoreLeadingWhitespaces();
 		parseUnescapedQuotes = settings.isParseUnescapedQuotes();
-		dontEscapeUnquotedValues = !settings.isEscapeUnquotedValues();
-		keepEscape = settings.isKeepEscapeSequences();
 
 		CsvFormat format = settings.getFormat();
 		delimiter = format.getDelimiter();
@@ -100,70 +96,6 @@ public class CsvParser extends AbstractParser<CsvParserSettings> {
 		}
 	}
 
-	private void parseValueProcessingEscape() {
-		char prev = '\0';
-
-		if (ignoreTrailingWhitespace) {
-			while (ch != delimiter && ch != newLine) {
-				if (ch != quote && ch != quoteEscape) {
-					output.appender.appendIgnoringWhitespace(ch);
-					prev = ch;
-				} else if (ch == quoteEscape && prev == escapeEscape && escapeEscape != '\0') {
-					if (keepEscape) {
-						output.appender.appendIgnoringWhitespace(escapeEscape);
-					}
-					output.appender.appendIgnoringWhitespace(quoteEscape);
-					prev = '\0';
-				} else if (prev == quoteEscape) {
-					if (ch == quote) {
-						if (keepEscape) {
-							output.appender.appendIgnoringWhitespace(quoteEscape);
-						}
-						output.appender.appendIgnoringWhitespace(quote);
-						prev = '\0';
-					} else {
-						output.appender.appendIgnoringWhitespace(prev);
-					}
-				} else {
-					if (ch == quote) {
-						output.appender.appendIgnoringWhitespace(quote);
-					}
-					prev = ch;
-				}
-				ch = input.nextChar();
-			}
-		} else {
-			while (ch != delimiter && ch != newLine) {
-				if (ch != quote && ch != quoteEscape) {
-					output.appender.append(ch);
-					prev = ch;
-				} else if (ch == quoteEscape && prev == escapeEscape && escapeEscape != '\0') {
-					if (keepEscape) {
-						output.appender.appendIgnoringWhitespace(escapeEscape);
-					}
-					output.appender.append(quoteEscape);
-					prev = '\0';
-				} else if (prev == quoteEscape) {
-					if (ch == quote) {
-						if (keepEscape) {
-							output.appender.append(quoteEscape);
-						}
-						output.appender.append(quote);
-						prev = '\0';
-					} else {
-						output.appender.append(prev);
-					}
-				} else {
-					if (ch == quote) {
-						output.appender.append(quote);
-					}
-					prev = ch;
-				}
-				ch = input.nextChar();
-			}
-		}
-	}
-
 	private void parseQuotedValue(char prev) {
 		ch = input.nextChar();
 
@@ -183,16 +115,10 @@ public class CsvParser extends AbstractParser<CsvParserSettings> {
 				output.appender.append(ch);
 				prev = ch;
 			} else if (ch == quoteEscape && prev == escapeEscape && escapeEscape != '\0') {
-				if (keepEscape) {
-					output.appender.append(escapeEscape);
-				}
-				output.appender.append(quoteEscape);
+				output.appender.append(ch);
 				prev = '\0';
 			} else if (prev == quoteEscape) {
 				if (ch == quote) {
-					if (keepEscape) {
-						output.appender.append(quoteEscape);
-					}
 					output.appender.append(quote);
 					prev = '\0';
 				} else {
@@ -249,10 +175,8 @@ public class CsvParser extends AbstractParser<CsvParserSettings> {
 		} else {
 			if (ch == quote) {
 				parseQuotedValue('\0');
-			} else if (dontEscapeUnquotedValues) {
-				parseValue();
 			} else {
-				parseValueProcessingEscape();
+				parseValue();
 			}
 			output.valueParsed();
 		}
@@ -264,25 +188,4 @@ public class CsvParser extends AbstractParser<CsvParserSettings> {
 		}
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	protected InputAnalysisProcess getInputAnalysisProcess() {
-		if (settings.isDelimiterDetectionEnabled() || settings.isQuoteDetectionEnabled()) {
-			return new CsvFormatDetector(20, settings) {
-				@Override
-				void apply(char delimiter, char quote, char quoteEscape) {
-					if (settings.isDelimiterDetectionEnabled()) {
-						CsvParser.this.delimiter = delimiter;
-					}
-					if (settings.isQuoteDetectionEnabled()) {
-						CsvParser.this.quote = quote;
-						CsvParser.this.quoteEscape = quoteEscape;
-					}
-				}
-			};
-		}
-		return null;
-	}
 }

@@ -7,11 +7,11 @@
 	<name>univocity-parsers</name>
 	<packaging>jar</packaging>
 	<description>uniVocity's open source parsers for processing different text formats using a consistent API</description>
-	<url>http://github.com/uniVocity/univocity-parsers</url>
+	<url>http://github.com/birchbox/univocity-parsers</url>
 
 	<issueManagement>
 		<system>GitHub Issues</system>
-		<url>https://github.com/uniVocity/univocity-parsers/issues</url>
+		<url>https://github.com/birchbox/univocity-parsers/issues</url>
 	</issueManagement>
 
 	<organization>

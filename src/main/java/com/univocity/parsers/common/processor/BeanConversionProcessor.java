@@ -59,9 +59,7 @@ abstract class BeanConversionProcessor<T> extends ConversionProcessor {
     protected final void initialize() {
         if (!initialized) {
             initialized = true;
-
             Map<String, PropertyDescriptor> properties = new HashMap<String, PropertyDescriptor>();
-
             try {
                 BeanInfo beanInfo = Introspector.getBeanInfo(beanClass, Object.class);
                 for (PropertyDescriptor property : beanInfo.getPropertyDescriptors()) {
@@ -96,11 +94,11 @@ abstract class BeanConversionProcessor<T> extends ConversionProcessor {
         }
     }
 
-	/**
-	 * Goes through each field annotated with {@link Parsed} and extracts the sequence of {@link Conversion} elements associated with each one.
-	 * @param field the field annotated with {@link Parsed} that must be associated with one or more {@link Conversion} objects
-	 * @param mapping a helper class to store information how the field is mapped to a parsed record.
-	 */
+    /**
+     * Goes through each field annotated with {@link Parsed} and extracts the sequence of {@link Conversion} elements associated with each one.
+     * @param field the field annotated with {@link Parsed} that must be associated with one or more {@link Conversion} objects
+     * @param mapping a helper class to store information how the field is mapped to a parsed record.
+     */
 	@SuppressWarnings("rawtypes")
 	private void setupConversions(Field field, FieldMapping mapping) {
 		Annotation[] annotations = field.getAnnotations();
@@ -116,7 +114,7 @@ abstract class BeanConversionProcessor<T> extends ConversionProcessor {
 				}
 			} catch (Throwable ex) {
 				String path = annotation.annotationType().getSimpleName() + "' of field '" + field.getName() + "' in " + this.beanClass.getName();
-				throw new DataProcessingException("Error processing annotation '" + path + ". " + ex.getMessage(), ex);
+				throw new IllegalArgumentException("Error processing annotation '" + path + ". " + ex.getMessage(), ex);
 			}
 		}
 
@@ -158,7 +156,7 @@ abstract class BeanConversionProcessor<T> extends ConversionProcessor {
 		for (Method method : conversion.getClass().getMethods()) {
 			if (method.getName().equals(methodName) && !method.isSynthetic() && !method.isBridge() && ((method.getModifiers() & Modifier.PUBLIC) == 1) && method.getParameterTypes().length == 1 && method.getReturnType() != Void.class) {
 				if (targetMethod != null) {
-					throw new DataProcessingException("Unable to convert values for class '" + beanClass + "'. Multiple '" + methodName + "' methods defined in conversion " + conversion.getClass() + ".");
+					throw new IllegalStateException("Unable to convert values for class '" + beanClass + "'. Multiple '" + methodName + "' methods defined in conversion " + conversion.getClass() + ".");
 				}
 				targetMethod = method;
 			}
@@ -167,7 +165,7 @@ abstract class BeanConversionProcessor<T> extends ConversionProcessor {
 			return targetMethod;
 		}
 		//should never happen
-		throw new DataProcessingException("Unable to convert values for class '" + beanClass + "'. Cannot find method '" + methodName + "' in conversion " + conversion.getClass() + ".");
+		throw new IllegalStateException("Unable to convert values for class '" + beanClass + "'. Cannot find method '" + methodName + "' in conversion " + conversion.getClass() + ".");
 	}
 
 	/**
@@ -197,7 +195,7 @@ abstract class BeanConversionProcessor<T> extends ConversionProcessor {
 	private void mapValuesToFields(T instance, Object[] row, ParsingContext context) {
 		if (row.length > lastFieldIndexMapped) {
 			this.lastFieldIndexMapped = row.length;
-			mapFieldIndexes(context, row, context.headers(), context.extractedFieldIndexes(), context.columnsReordered());
+			mapFieldIndexes(row, context.headers(), context.extractedFieldIndexes(), context.columnsReordered());
 		}
 
 		int last = row.length < readOrder.length ? row.length : readOrder.length;
@@ -219,7 +217,7 @@ abstract class BeanConversionProcessor<T> extends ConversionProcessor {
 	 * @param columnsReordered Indicates the indexes provided were reordered and do not match the original sequence of headers.
 	 */
 
-	private void mapFieldIndexes(ParsingContext context, Object[] row, String[] headers, int[] indexes, boolean columnsReordered) {
+	private void mapFieldIndexes(Object[] row, String[] headers, int[] indexes, boolean columnsReordered) {
 		if (headers == null) {
 			headers = ArgumentUtils.EMPTY_STRING_ARRAY;
 		}
@@ -233,13 +231,14 @@ abstract class BeanConversionProcessor<T> extends ConversionProcessor {
 
 		FieldMapping[] fieldOrder = new FieldMapping[biggestIndex];
 
-		TreeSet<String> fieldsNotFound = new TreeSet<String>();
-
 		for (FieldMapping mapping : parsedFields) {
 			if (mapping.isMappedToField()) {
 				int index = ArgumentUtils.indexOf(headers, mapping.getFieldName());
 				if (index == -1) {
-					fieldsNotFound.add(mapping.getFieldName());
+					if (headers.length == 0) {
+						throw new IllegalStateException("Could not find field with name '" + mapping.getFieldName() + "' in input. Please enable header extraction in the parser settings in order to match field names.");
+					}
+					throw new IllegalStateException("Could not find field with name '" + mapping.getFieldName() + "' in input. Names found: " + Arrays.toString(headers));
 				}
 				fieldOrder[index] = mapping;
 			} else {
@@ -247,13 +246,6 @@ abstract class BeanConversionProcessor<T> extends ConversionProcessor {
 					fieldOrder[mapping.getIndex()] = mapping;
 				}
 			}
-		}
-
-		if (!fieldsNotFound.isEmpty()) {
-			if (headers.length == 0) {
-				throw new DataProcessingException("Could not find fields " + fieldsNotFound.toString() + " in input. Please enable header extraction in the parser settings in order to match field names.");
-			}
-			throw new DataProcessingException("Could not find fields " + fieldsNotFound.toString() + "' in input. Names found: " + Arrays.toString(headers));
 		}
 
 		if (indexes != null) {
@@ -299,15 +291,12 @@ abstract class BeanConversionProcessor<T> extends ConversionProcessor {
 	 */
 	public final T createBean(String[] row, ParsingContext context) {
 		Object[] convertedRow = super.applyConversions(row, context);
-		if (convertedRow == null) {
-			return null;
-		}
 
 		T instance;
 		try {
 			instance = beanClass.newInstance();
 		} catch (Throwable e) {
-			throw new DataProcessingException("Unable to instantiate class '" + beanClass.getName() + "'", row, e);
+			throw new IllegalStateException("Unable to instantiate class '" + beanClass.getName() + "'", e);
 		}
 		mapValuesToFields(instance, convertedRow, context);
 		return instance;
@@ -323,7 +312,7 @@ abstract class BeanConversionProcessor<T> extends ConversionProcessor {
 	 */
 	private void mapFieldsToValues(T instance, Object[] row, String[] headers, int[] indexes, boolean columnsReordered) {
 		if (row.length > this.lastFieldIndexMapped) {
-			mapFieldIndexes(null, row, headers, indexes, columnsReordered);
+			mapFieldIndexes(row, headers, indexes, columnsReordered);
 		}
 
 		int last = row.length < readOrder.length ? row.length : readOrder.length;
@@ -344,44 +333,19 @@ abstract class BeanConversionProcessor<T> extends ConversionProcessor {
 	 * @return a row of objects containing the values extracted from the java bean
 	 */
 	public final Object[] reverseConversions(T bean, String[] headers, int[] indexesToWrite) {
-		if (bean == null) {
-			return null;
-		}
 		Object[] row;
 		if (indexesToWrite != null) {
 			row = new Object[indexesToWrite.length];
-		} else if (headers != null) {
-			row = new Object[headers.length];
 		} else {
-			throw new TextWritingException("Cannot process bean of type " + bean.getClass().getName() + ". No headers defined nor selection of indexes to write.", -1, new Object[] { bean });
+			row = new Object[headers.length];
 		}
 
 		if (bean != null) {
-			try {
-				mapFieldsToValues(bean, row, headers, indexesToWrite, false);
-			} catch (DataProcessingException ex) {
-				ex.markAsNonFatal();
-				if (!beanClass.isAssignableFrom(bean.getClass())) {
-					handleConversionError(ex, new Object[] { bean }, -1);
-				} else {
-					handleConversionError(ex, row, -1);
-				}
-				return null;
-			}
+			mapFieldsToValues(bean, row, headers, indexesToWrite, false);
 		}
 
-		if (super.reverseConversions(true, row, headers, indexesToWrite)) {
-			return row;
-		}
+		super.reverseConversions(true, row, headers, indexesToWrite);
 
-		return null;
-	}
-
-	/**
-	 * Returns the class of the annotated java bean instances that will be manipulated by this processor.
-	 * @return the class of the annotated java bean instances that will be manipulated by this processor.
-	 */
-	public Class<T> getBeanClass() {
-		return beanClass;
+		return row;
 	}
 }

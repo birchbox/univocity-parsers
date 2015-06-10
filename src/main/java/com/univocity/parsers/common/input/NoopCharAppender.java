@@ -132,11 +132,4 @@ public class NoopCharAppender implements CharAppender {
 		return null;
 	}
 
-	/**
-	 * Does nothing
-	 */
-	@Override
-	public void fill(char ch, int length) {
-	}
-
 }

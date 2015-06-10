@@ -182,7 +182,7 @@ class ColumnSplitter<T> {
 		for (int i = 0; i < columnValues.size(); i++) {
 			String header = getHeader(i);
 			if (header == null) {
-				throw new DataProcessingException("Parsed input does not have header for column at index '" + i + "'. Parsed header names: " + Arrays.toString(getHeaders()), i);
+				throw new IllegalArgumentException("Parsed input does not have header for column at index '" + i + "'. Parsed header names: " + Arrays.toString(getHeaders()));
 			}
 			map.put(header, columnValues.get(i));
 		}
