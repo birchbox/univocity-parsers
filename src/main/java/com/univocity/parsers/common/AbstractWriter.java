@@ -54,9 +54,10 @@ public abstract class AbstractWriter<S extends CommonWriterSettings<?>> {
     private final char comment;
     private final StringBuilder freeText = new StringBuilder();
     private final WriterCharAppender rowAppender;
+    private final boolean isHeaderWritingEnabled;
 
-    private Object[] outputRow;
-    private int[] indexesToWrite;
+    private final Object[] outputRow;
+    private final int[] indexesToWrite;
     private final char[] lineSeparator;
 
     private String[] headers;
@@ -70,14 +71,13 @@ public abstract class AbstractWriter<S extends CommonWriterSettings<?>> {
     private int partialLineIndex = 0;
     private Map<String, Integer> headerIndexes;
 
-    private int largestRowLength = -1;
-
     /**
      * All writers must support, at the very least, the settings provided by {@link CommonWriterSettings}. The AbstractWriter requires its configuration to be properly initialized.
      * @param writer the output resource that will receive the format-specific records as defined by subclasses of {@link AbstractWriter}.
      * @param settings the parser configuration
      */
     public AbstractWriter(Writer writer, S settings) {
+        settings.autoConfigure();
         this.nullValue = settings.getNullValue();
         this.emptyValue = settings.getEmptyValue();
 
@@ -97,48 +97,17 @@ public abstract class AbstractWriter<S extends CommonWriterSettings<?>> {
 
         this.headers = settings.getHeaders();
 
-        updateIndexesToWrite(settings);
-
-        this.partialLine = new Object[settings.getMaxColumns()];
-    }
-
-    /**
-     * Update indexes to write based on the field selection provided by the user.
-     */
-    private void updateIndexesToWrite(CommonSettings<?> settings) {
         FieldSelector selector = settings.getFieldSelector();
-        if (selector != null) {
-            if (headers != null && headers.length > 0) {
-                outputRow = new Object[headers.length];
-                indexesToWrite = selector.getFieldIndexes(headers);
-            } else if (!(selector instanceof FieldNameSelector) && !(selector instanceof ExcludeFieldNameSelector)) {
-                int rowLength = largestRowLength;
-                if ((selector instanceof FieldIndexSelector)) {
-                    boolean gotLengthFromSelection = false;
-                    for (Integer index : ((FieldIndexSelector) selector).get()) {
-                        if (rowLength <= index) {
-                            rowLength = index;
-                            gotLengthFromSelection = true;
-                        }
-                    }
-                    if (gotLengthFromSelection) {
-                        rowLength++;
-                    }
-                    if (rowLength < largestRowLength) {
-                        rowLength = largestRowLength;
-                    }
-                } else {
-                    rowLength = settings.getMaxColumns();
-                }
-                outputRow = new Object[rowLength];
-                indexesToWrite = selector.getFieldIndexes(new String[rowLength]); //generates a dummy header array - only the indexes matter so we are good
-            } else {
-                throw new IllegalStateException("Cannot select fields by name with no headers defined");
-            }
+        if (headers != null && headers.length > 0 && selector != null) {
+            outputRow = new Object[headers.length];
+            indexesToWrite = selector.getFieldIndexes(headers);
         } else {
             outputRow = null;
             indexesToWrite = null;
         }
+
+        this.partialLine = new Object[settings.getMaxColumns()];
+        this.isHeaderWritingEnabled = settings.isHeaderWritingEnabled();
     }
 
     /**
@@ -411,6 +380,9 @@ public abstract class AbstractWriter<S extends CommonWriterSettings<?>> {
      */
     public final void writeRow(Object... row) {
         try {
+            if (recordCount == 0 && isHeaderWritingEnabled && headers != null) {
+                writeHeaders();
+            }
             if (row == null || row.length == 0) {
                 if (skipEmptyLines) {
                     return;
